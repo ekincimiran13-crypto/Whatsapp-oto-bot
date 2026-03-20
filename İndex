@@ -5,11 +5,16 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--no-zygote',
+            '--single-process'
+        ]
     }
 });
 
-// --- REKLAM MESAJINIZ ---
 const MESAJ_ICERIGI = `👑 7/24 AKTİF PROFESYONEL SEARCH GRUBU
 
 🎯 Kaliteli oyuncular
@@ -21,9 +26,8 @@ const MESAJ_ICERIGI = `👑 7/24 AKTİF PROFESYONEL SEARCH GRUBU
 📌 Yerini hemen al:
 
 https://chat.whatsapp.com/HXLzSDEQ1tc1OdVqEVd89Q?mode=gi_t`;
-// -----------------------
 
-let aktifGruplar = new Set(); // Mesaj gönderilen grupları takip eder
+let aktifGruplar = new Set();
 
 client.on('qr', qr => {
     console.log("QR LİNKİ: https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(qr));
@@ -31,30 +35,32 @@ client.on('qr', qr => {
 });
 
 client.on('ready', () => {
-    console.log('>>> BOT AKTİF! GRUPLARDAN MESAJ GELMESİ BEKLENİYOR... <<<');
+    console.log('>>> BOT AKTİF VE EN HAFİF MODDA! <<<');
 });
 
-// Herhangi bir gruptan mesaj geldiğinde tetiklenir
-client.on('message', async (msg) => {
-    const chat = await msg.getChat();
-    
-    // Eğer mesaj bir gruptan geldiyse ve bot bu grubu henüz listeye almadıysa
-    if (chat.isGroup && !aktifGruplar.has(chat.id._serialized)) {
-        aktifGruplar.add(chat.id._serialized);
-        console.log(`YENİ HEDEF BELİRLENDİ: ${chat.name}. Reklam döngüsü başlıyor...`);
+// Hataları yakalayarak botun çökmesini engelle
+process.on('uncaughtException', (err) => console.log('Sistem Hatası Yakalandı:', err.message));
+
+client.on('message_create', async (msg) => {
+    // Sadece gruplardan gelen mesajları işle (Ağır chat sorgusu yapmadan)
+    if (msg.from.endsWith('@g.us') && !aktifGruplar.has(msg.from)) {
+        const grupId = msg.from;
+        aktifGruplar.add(grupId);
         
-        // İlk reklamı hemen gönder
-        client.sendMessage(chat.id._serialized, MESAJ_ICERIGI)
-            .then(() => console.log(`İlk reklam başarıyla atıldı: ${chat.name}`))
-            .catch(err => console.log(`Gönderim hatası (${chat.name}):`, err));
+        console.log(`YENİ HEDEF GRUP BULUNDU: ${grupId}`);
         
-        // Bu grup için 3 dakikalık zamanlayıcıyı başlat
+        // İlk reklamı hemen gönder (Hata kontrolü ile)
+        client.sendMessage(grupId, MESAJ_ICERIGI)
+            .then(() => console.log(`İlk reklam başarıyla atıldı.`))
+            .catch(err => console.log(`Gönderim hatası:`, err.message));
+        
+        // 3 dakikalık döngü
         setInterval(() => {
-            client.sendMessage(chat.id._serialized, MESAJ_ICERIGI)
-                .then(() => console.log(`3 dakikalık reklam atıldı: ${chat.name}`))
-                .catch(err => console.log(`Döngü hatası (${chat.name}):`, err));
+            client.sendMessage(grupId, MESAJ_ICERIGI)
+                .then(() => console.log(`Periyodik reklam atıldı.`))
+                .catch(err => console.log(`Döngü hatası:`, err.message));
         }, 3 * 60 * 1000);
     }
 });
 
-client.initialize();
+client.initialize().catch(err => console.log("Başlatma hatası:", err.message));
