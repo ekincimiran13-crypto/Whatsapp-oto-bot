@@ -15,8 +15,9 @@ let messageContent = '';
 let targetGroups = [];
 
 client.on('qr', qr => {
-    console.log('QR Kodu tarayın (Scan QR Code):');
-    qrcode.generate(qr);
+    // Tablet ekranına sığması için küçük boyutta üret
+    qrcode.generate(qr, { small: true });
+    console.log("Yukarıdaki QR kodu taratın. Eğer kod bozuk görünüyorsa tarayıcıyı %50 küçültün.");
 });
 
 client.on('ready', () => {
