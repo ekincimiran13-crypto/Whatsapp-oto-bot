@@ -24,7 +24,7 @@ let targetGroups = [];
 
 client.on('qr', qr => {
     console.log("--------------------------------------------------");
-    console.log("QR KODUNU BURADAN TARATIN:");
+    console.log("QR KODUNU BURADAN TARATIN (LİNKİ AÇIN):");
     console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
     console.log("--------------------------------------------------");
     qrcode.generate(qr, { small: true });
@@ -34,45 +34,42 @@ client.on('ready', () => {
     console.log('>>> BOT TAMAMEN HAZIR VE MESAJLARI DİNLİYOR! <<<');
 });
 
-// Hem başkalarından gelen hem de sizin gönderdiğiniz mesajları dinler
-client.on('message_create', async msg => {
-    // Sadece nokta (.) ile başlayan mesajları işle
+client.on('message_create', async (msg) => {
+    console.log(`Mesaj algılandı: ${msg.body}`);
+
     if (msg.body.startsWith('.')) {
-        console.log(`Komut alındı: ${msg.body}`);
         const chat = await msg.getChat();
-        const args = msg.body.slice(1).split(/ +/);
+        const args = msg.body.slice(1).trim().split(/ +/);
         const command = args.shift().toLowerCase();
+
+        console.log(`Komut çalıştırılıyor: ${command}`);
 
         if (command === 'ekle') {
             if (chat.isGroup) {
                 if (!targetGroups.includes(chat.id._serialized)) {
                     targetGroups.push(chat.id._serialized);
-                    await msg.reply('✅ Bu grup listeye eklendi.');
-                    console.log(`Grup eklendi: ${chat.name}`);
+                    await client.sendMessage(msg.from, '✅ Bu grup listeye eklendi.');
                 } else {
-                    await msg.reply('⚠️ Bu grup zaten listede.');
+                    await client.sendMessage(msg.from, '⚠️ Bu grup zaten listede.');
                 }
             } else {
-                await msg.reply('❌ Sadece grupları ekleyebilirsiniz.');
+                await client.sendMessage(msg.from, '❌ Sadece grupları ekleyebilirsiniz.');
             }
         }
 
         if (command === 'baslat') {
             if (args.length === 0) {
-                await msg.reply('❌ Lütfen mesajı yazın. Örnek: .baslat Merhaba');
+                await client.sendMessage(msg.from, '❌ Mesaj yazın. Örnek: .baslat Selam');
                 return;
             }
             messageContent = args.join(' ');
             if (!messageInterval) {
                 messageInterval = setInterval(() => {
-                    console.log(`Otomatik mesaj gönderiliyor: ${messageContent}`);
                     targetGroups.forEach(id => {
-                        client.sendMessage(id, messageContent).catch(err => console.log("Gönderim hatası:", err));
+                        client.sendMessage(id, messageContent).catch(err => console.log("Hata:", err));
                     });
-                }, 3 * 60 * 1000); // 3 Dakika
-                await msg.reply(`🚀 Başlatıldı! Mesajınız her 3 dakikada bir ${targetGroups.length} gruba gönderilecek.`);
-            } else {
-                await msg.reply('⚠️ Bot zaten çalışıyor. Durdurmak için .durdur yazın.');
+                }, 3 * 60 * 1000);
+                await client.sendMessage(msg.from, `🚀 Başlatıldı! Mesajınız her 3 dakikada bir ${targetGroups.length} gruba gönderilecek.`);
             }
         }
 
@@ -80,14 +77,12 @@ client.on('message_create', async msg => {
             if (messageInterval) {
                 clearInterval(messageInterval);
                 messageInterval = null;
-                await msg.reply('🛑 Otomatik mesaj gönderimi durduruldu.');
-            } else {
-                await msg.reply('⚠️ Zaten çalışan bir işlem yok.');
+                await client.sendMessage(msg.from, '🛑 Durduruldu.');
             }
         }
 
         if (command === 'liste') {
-            await msg.reply(`📋 Şu an kayıtlı grup sayısı: ${targetGroups.length}`);
+            await client.sendMessage(msg.from, `📋 Kayıtlı grup sayısı: ${targetGroups.length}`);
         }
     }
 });
