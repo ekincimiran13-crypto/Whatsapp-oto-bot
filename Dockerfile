@@ -1,59 +1,36 @@
-# Use Node.js 18 on Debian Bullseye for broad system library support
-FROM node:18-bullseye
+FROM node:18
 
-# Install Chromium and all browser automation dependencies required by
-# whatsapp-web.js / Puppeteer (libnss3, libatk, libgbm-dev, etc.)
+# Puppeteer için gerekli sistem bağımlılıklarını yükle
 RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm-dev \
-    libgcc1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    lsb-release \
     wget \
-    xdg-utils \
-    --no-install-recommends \
+    gnupg \
+    ca-certificates \
+    procps \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy dependency manifests first for better layer caching
-COPY package.json package-lock.json* ./
+COPY package*.json ./
 
-# Install Node dependencies
-RUN npm install --omit=dev
+# Puppeteer ile birlikte Chrome'u da indir
+RUN npm install
+RUN npx puppeteer browsers install chrome
 
-# Copy the rest of the application source
 COPY . .
 
-# Start the bot
-CMD ["npm", "start"]
+# Render için Puppeteer önbellek yolunu ayarla
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+
+CMD ["node", "index.js"]
