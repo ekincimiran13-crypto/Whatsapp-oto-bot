@@ -13,6 +13,7 @@ let messageContent = '';
 let targetGroups = [];
 
 client.on('qr', qr => {
+    console.log('QR Kodu tarayın:');
     qrcode.generate(qr, { small: true });
 });
 
