@@ -1,0 +1,71 @@
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
+});
+
+let messageInterval;
+let messageContent = '';
+let targetGroups = [];
+
+client.on('qr', qr => {
+    qrcode.generate(qr, { small: true });
+});
+
+client.on('ready', () => {
+    console.log('Bot hazır!');
+});
+
+client.on('message', async msg => {
+    const chat = await msg.getChat();
+
+    if (msg.body.startsWith('.')) {
+        const args = msg.body.slice(1).split(/ +/);
+        const command = args.shift().toLowerCase();
+
+        switch (command) {
+            case 'baslat':
+                if (args.length === 0) {
+                    msg.reply('Lütfen mesajı yazın. Örnek: .baslat Selam!');
+                    return;
+                }
+                messageContent = args.join(' ');
+                if (!messageInterval) {
+                    messageInterval = setInterval(() => {
+                        targetGroups.forEach(groupId => {
+                            client.sendMessage(groupId, messageContent);
+                        });
+                    }, 3 * 60 * 1000);
+                    msg.reply(`Başlatıldı: '${messageContent}' her 3 dakikada bir.`);
+                }
+                break;
+
+            case 'durdur':
+                if (messageInterval) {
+                    clearInterval(messageInterval);
+                    messageInterval = null;
+                    msg.reply('Durduruldu.');
+                }
+                break;
+
+            case 'ekle':
+                if (chat.isGroup) {
+                    if (!targetGroups.includes(chat.id._serialized)) {
+                        targetGroups.push(chat.id._serialized);
+                        msg.reply('Grup eklendi.');
+                    }
+                }
+                break;
+
+            case 'liste':
+                msg.reply(`Hedef grup sayısı: ${targetGroups.length}`);
+                break;
+        }
+    }
+});
+
+client.initialize();
