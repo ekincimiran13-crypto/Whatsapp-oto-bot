@@ -1,6 +1,8 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
+console.log('Bot başlatılıyor...');
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -13,12 +15,24 @@ let messageContent = '';
 let targetGroups = [];
 
 client.on('qr', qr => {
-    console.log('QR Kodu tarayın:');
-    qrcode.generate(qr, { small: true });
+    console.log('QR Kodu tarayın (Scan QR Code):');
+    qrcode.generate(qr);
 });
 
 client.on('ready', () => {
-    console.log('Bot hazır!');
+    console.log('Bot hazır! Bağlantı başarılı.');
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Bot bağlantısı kesildi:', reason);
+});
+
+client.on('auth_failure', (msg) => {
+    console.error('Kimlik doğrulama hatası (Auth failure):', msg);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('İşlenmeyen hata (Unhandled rejection):', reason);
 });
 
 client.on('message', async msg => {
