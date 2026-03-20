@@ -4,7 +4,17 @@ const qrcode = require('qrcode-terminal');
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu'
+        ]
     }
 });
 
@@ -13,52 +23,71 @@ let messageContent = '';
 let targetGroups = [];
 
 client.on('qr', qr => {
-    // Terminalde kodun görünmesi için (Yine de kalsın)
-    qrcode.generate(qr, { small: true });
-    
-    // ASIL ÇÖZÜM: QR kodunu taratmanız için bir link oluşturuyoruz
     console.log("--------------------------------------------------");
-    console.log("QR KODUNU BURADAN TARATIN (LİNKİ KOPYALAYIP AÇIN):");
+    console.log("QR KODUNU BURADAN TARATIN:");
     console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
     console.log("--------------------------------------------------");
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-    console.log('BOT HAZIR VE BAĞLANDI!');
+    console.log('>>> BOT TAMAMEN HAZIR VE MESAJLARI DİNLİYOR! <<<');
 });
 
-client.on('message', async msg => {
-    const chat = await msg.getChat();
+// Hem başkalarından gelen hem de sizin gönderdiğiniz mesajları dinler
+client.on('message_create', async msg => {
+    // Sadece nokta (.) ile başlayan mesajları işle
     if (msg.body.startsWith('.')) {
+        console.log(`Komut alındı: ${msg.body}`);
+        const chat = await msg.getChat();
         const args = msg.body.slice(1).split(/ +/);
         const command = args.shift().toLowerCase();
-        switch (command) {
-            case 'baslat':
-                if (args.length === 0) return msg.reply('Mesaj yazın. Örnek: .baslat Selam');
-                messageContent = args.join(' ');
-                if (!messageInterval) {
-                    messageInterval = setInterval(() => {
-                        targetGroups.forEach(id => client.sendMessage(id, messageContent));
-                    }, 3 * 60 * 1000);
-                    msg.reply(`Başlatıldı: '${messageContent}' her 3 dakikada bir.`);
-                }
-                break;
-            case 'durdur':
-                if (messageInterval) {
-                    clearInterval(messageInterval);
-                    messageInterval = null;
-                    msg.reply('Durduruldu.');
-                }
-                break;
-            case 'ekle':
-                if (chat.isGroup && !targetGroups.includes(chat.id._serialized)) {
+
+        if (command === 'ekle') {
+            if (chat.isGroup) {
+                if (!targetGroups.includes(chat.id._serialized)) {
                     targetGroups.push(chat.id._serialized);
-                    msg.reply('Grup eklendi.');
+                    await msg.reply('✅ Bu grup listeye eklendi.');
+                    console.log(`Grup eklendi: ${chat.name}`);
+                } else {
+                    await msg.reply('⚠️ Bu grup zaten listede.');
                 }
-                break;
-            case 'liste':
-                msg.reply(`Hedef grup sayısı: ${targetGroups.length}`);
-                break;
+            } else {
+                await msg.reply('❌ Sadece grupları ekleyebilirsiniz.');
+            }
+        }
+
+        if (command === 'baslat') {
+            if (args.length === 0) {
+                await msg.reply('❌ Lütfen mesajı yazın. Örnek: .baslat Merhaba');
+                return;
+            }
+            messageContent = args.join(' ');
+            if (!messageInterval) {
+                messageInterval = setInterval(() => {
+                    console.log(`Otomatik mesaj gönderiliyor: ${messageContent}`);
+                    targetGroups.forEach(id => {
+                        client.sendMessage(id, messageContent).catch(err => console.log("Gönderim hatası:", err));
+                    });
+                }, 3 * 60 * 1000); // 3 Dakika
+                await msg.reply(`🚀 Başlatıldı! Mesajınız her 3 dakikada bir ${targetGroups.length} gruba gönderilecek.`);
+            } else {
+                await msg.reply('⚠️ Bot zaten çalışıyor. Durdurmak için .durdur yazın.');
+            }
+        }
+
+        if (command === 'durdur') {
+            if (messageInterval) {
+                clearInterval(messageInterval);
+                messageInterval = null;
+                await msg.reply('🛑 Otomatik mesaj gönderimi durduruldu.');
+            } else {
+                await msg.reply('⚠️ Zaten çalışan bir işlem yok.');
+            }
+        }
+
+        if (command === 'liste') {
+            await msg.reply(`📋 Şu an kayıtlı grup sayısı: ${targetGroups.length}`);
         }
     }
 });
