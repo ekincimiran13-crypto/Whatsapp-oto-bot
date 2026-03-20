@@ -9,82 +9,63 @@ const client = new Client({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-gpu'
+            '--no-zygote'
         ]
     }
 });
 
-let messageInterval;
-let messageContent = '';
-let targetGroups = [];
+// --- REKLAM MESAJINIZ ---
+const MESAJ_ICERIGI = `👑 7/24 AKTİF PROFESYONEL SEARCH GRUBU
+
+🎯 Kaliteli oyuncular
+🎯 Hızlı takım bulma
+🎯 Düzenli aktif ortam
+
+💼 Ciddi oyuncuların tercihi
+
+📌 Yerini hemen al:
+
+https://chat.whatsapp.com/HXLzSDEQ1tc1OdVqEVd89Q?mode=gi_t`;
+// -----------------------
 
 client.on('qr', qr => {
     console.log("--------------------------------------------------");
-    console.log("QR KODUNU BURADAN TARATIN (LİNKİ AÇIN):");
+    console.log("QR KODUNU BURADAN TARATIN:");
     console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
     console.log("--------------------------------------------------");
     qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
-    console.log('>>> BOT TAMAMEN HAZIR VE MESAJLARI DİNLİYOR! <<<');
-});
+client.on('ready', async () => {
+    console.log('>>> BOT BAĞLANDI! TÜM GRUPLAR ARANIYOR... <<<');
+    
+    const chats = await client.getChats();
+    // Rehberdeki TÜM grupları filtrele
+    const tumGruplar = chats.filter(chat => chat.isGroup);
 
-client.on('message_create', async (msg) => {
-    console.log(`Mesaj algılandı: ${msg.body}`);
-
-    if (msg.body.startsWith('.')) {
-        const chat = await msg.getChat();
-        const args = msg.body.slice(1).trim().split(/ +/);
-        const command = args.shift().toLowerCase();
-
-        console.log(`Komut çalıştırılıyor: ${command}`);
-
-        if (command === 'ekle') {
-            if (chat.isGroup) {
-                if (!targetGroups.includes(chat.id._serialized)) {
-                    targetGroups.push(chat.id._serialized);
-                    await client.sendMessage(msg.from, '✅ Bu grup listeye eklendi.');
-                } else {
-                    await client.sendMessage(msg.from, '⚠️ Bu grup zaten listede.');
-                }
-            } else {
-                await client.sendMessage(msg.from, '❌ Sadece grupları ekleyebilirsiniz.');
-            }
-        }
-
-        if (command === 'baslat') {
-            if (args.length === 0) {
-                await client.sendMessage(msg.from, '❌ Mesaj yazın. Örnek: .baslat Selam');
-                return;
-            }
-            messageContent = args.join(' ');
-            if (!messageInterval) {
-                messageInterval = setInterval(() => {
-                    targetGroups.forEach(id => {
-                        client.sendMessage(id, messageContent).catch(err => console.log("Hata:", err));
-                    });
-                }, 3 * 60 * 1000);
-                await client.sendMessage(msg.from, `🚀 Başlatıldı! Mesajınız her 3 dakikada bir ${targetGroups.length} gruba gönderilecek.`);
-            }
-        }
-
-        if (command === 'durdur') {
-            if (messageInterval) {
-                clearInterval(messageInterval);
-                messageInterval = null;
-                await client.sendMessage(msg.from, '🛑 Durduruldu.');
-            }
-        }
-
-        if (command === 'liste') {
-            await client.sendMessage(msg.from, `📋 Kayıtlı grup sayısı: ${targetGroups.length}`);
-        }
+    if (tumGruplar.length === 0) {
+        console.log("HATA: Hiç grup bulunamadı!");
+        return;
     }
+
+    console.log(`${tumGruplar.length} ADET GRUP BULUNDU. OTOMATİK REKLAM GÖNDERİMİ BAŞLIYOR...`);
+
+    // Bot açılır açılmaz tüm gruplara ilk mesajı gönder
+    tumGruplar.forEach(grup => {
+        client.sendMessage(grup.id._serialized, MESAJ_ICERIGI)
+            .then(() => console.log(`Reklam gönderildi: ${grup.name}`))
+            .catch(err => console.log(`Hata (${grup.name}):`, err));
+    });
+
+    // Sonrasında her 3 dakikada bir tüm gruplara gönder
+    setInterval(() => {
+        console.log("--- YENİ REKLAM DÖNGÜSÜ BAŞLADI ---");
+        tumGruplar.forEach(grup => {
+            client.sendMessage(grup.id._serialized, MESAJ_ICERIGI)
+                .then(() => console.log(`Reklam gönderildi: ${grup.name}`))
+                .catch(err => console.log(`Hata (${grup.name}):`, err));
+        });
+    }, 3 * 60 * 1000); // 3 Dakika
 });
 
 client.initialize();
