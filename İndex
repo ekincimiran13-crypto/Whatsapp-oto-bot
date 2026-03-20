@@ -1,8 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
-console.log('Bot başlatılıyor...');
-
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -15,51 +13,36 @@ let messageContent = '';
 let targetGroups = [];
 
 client.on('qr', qr => {
-    // Tablet ekranına sığması için küçük boyutta üret
+    // Terminalde kodun görünmesi için (Yine de kalsın)
     qrcode.generate(qr, { small: true });
-    console.log("Yukarıdaki QR kodu taratın. Eğer kod bozuk görünüyorsa tarayıcıyı %50 küçültün.");
+    
+    // ASIL ÇÖZÜM: QR kodunu taratmanız için bir link oluşturuyoruz
+    console.log("--------------------------------------------------");
+    console.log("QR KODUNU BURADAN TARATIN (LİNKİ KOPYALAYIP AÇIN):");
+    console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
+    console.log("--------------------------------------------------");
 });
 
 client.on('ready', () => {
-    console.log('Bot hazır! Bağlantı başarılı.');
-});
-
-client.on('disconnected', (reason) => {
-    console.log('Bot bağlantısı kesildi:', reason);
-});
-
-client.on('auth_failure', (msg) => {
-    console.error('Kimlik doğrulama hatası (Auth failure):', msg);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('İşlenmeyen hata (Unhandled rejection):', reason);
+    console.log('BOT HAZIR VE BAĞLANDI!');
 });
 
 client.on('message', async msg => {
     const chat = await msg.getChat();
-
     if (msg.body.startsWith('.')) {
         const args = msg.body.slice(1).split(/ +/);
         const command = args.shift().toLowerCase();
-
         switch (command) {
             case 'baslat':
-                if (args.length === 0) {
-                    msg.reply('Lütfen mesajı yazın. Örnek: .baslat Selam!');
-                    return;
-                }
+                if (args.length === 0) return msg.reply('Mesaj yazın. Örnek: .baslat Selam');
                 messageContent = args.join(' ');
                 if (!messageInterval) {
                     messageInterval = setInterval(() => {
-                        targetGroups.forEach(groupId => {
-                            client.sendMessage(groupId, messageContent);
-                        });
+                        targetGroups.forEach(id => client.sendMessage(id, messageContent));
                     }, 3 * 60 * 1000);
                     msg.reply(`Başlatıldı: '${messageContent}' her 3 dakikada bir.`);
                 }
                 break;
-
             case 'durdur':
                 if (messageInterval) {
                     clearInterval(messageInterval);
@@ -67,16 +50,12 @@ client.on('message', async msg => {
                     msg.reply('Durduruldu.');
                 }
                 break;
-
             case 'ekle':
-                if (chat.isGroup) {
-                    if (!targetGroups.includes(chat.id._serialized)) {
-                        targetGroups.push(chat.id._serialized);
-                        msg.reply('Grup eklendi.');
-                    }
+                if (chat.isGroup && !targetGroups.includes(chat.id._serialized)) {
+                    targetGroups.push(chat.id._serialized);
+                    msg.reply('Grup eklendi.');
                 }
                 break;
-
             case 'liste':
                 msg.reply(`Hedef grup sayısı: ${targetGroups.length}`);
                 break;
