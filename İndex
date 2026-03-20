@@ -5,17 +5,10 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        // Render üzerinde Chrome'un yolunu otomatik bulması için ayar
-        executablePath: '/usr/bin/google-chrome-stable', 
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
-        ]
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     }
 });
 
-// --- REKLAM MESAJINIZ (Aynen Kalsın) ---
 const MESAJ_ICERIGI = `👑 7/24 AKTİF PROFESYONEL SEARCH GRUBU
 
 🎯 Kaliteli oyuncular
@@ -28,19 +21,33 @@ const MESAJ_ICERIGI = `👑 7/24 AKTİF PROFESYONEL SEARCH GRUBU
 
 https://chat.whatsapp.com/HXLzSDEQ1tc1OdVqEVd89Q?mode=gi_t`;
 
-// ... (Geri kalan kodlar aynı kalsın)
+let aktifGruplar = new Set();
+
 client.on('qr', qr => {
     console.log("QR LİNKİ: https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(qr));
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-    console.log('>>> BOT RENDER ÜZERİNDE AKTİF! <<<');
+    console.log('>>> BOT RENDER ÜZERİNDE AKTİF VE HAZIR! <<<');
 });
 
 client.on('message_create', async (msg) => {
-    if (msg.from.endsWith('@g.us')) {
-        // ... (Aynı mantıkla devam edecek)
+    if (msg.from.endsWith('@g.us') && !aktifGruplar.has(msg.from)) {
+        const grupId = msg.from;
+        aktifGruplar.add(grupId);
+        console.log(`HEDEF BULUNDU: ${grupId}`);
+        
+        setTimeout(() => {
+            client.sendMessage(grupId, MESAJ_ICERIGI)
+                .then(() => console.log(`✅ Reklam başarıyla atıldı.`))
+                .catch(err => console.log(`❌ Hata:`, err.message));
+        }, 5000);
+        
+        setInterval(() => {
+            client.sendMessage(grupId, MESAJ_ICERIGI)
+                .catch(err => console.log(`❌ Döngü hatası:`, err.message));
+        }, 3 * 60 * 1000);
     }
 });
 
