@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-oto-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp otomatik mesaj botu",
+  "main": "İndex",
+  "scripts": {
+    "start": "node İndex"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.23.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
